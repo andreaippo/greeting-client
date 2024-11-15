@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: greeting-client
+
+server:
+  port: 8070
