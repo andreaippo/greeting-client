@@ -1,7 +1,7 @@
 package hello;
 
-import io.github.resilience4j.retry.Retry;
-import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,8 +12,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.function.Supplier;
 
 @RestController
@@ -24,6 +22,10 @@ public class GreetingClientApplication {
 
   @Value("${load-balancer-host}")
   private String loadBalancerHost;
+
+  // Open circuit when reaching 20% of failure rate - try to half-open after 1' (default)
+  private final CircuitBreaker circuitBreaker = CircuitBreaker.of("default",
+    CircuitBreakerConfig.custom().failureRateThreshold(20f).build());
 
   public static void main(String[] args) {
     SpringApplication.run(GreetingClientApplication.class, args);
@@ -41,9 +43,13 @@ public class GreetingClientApplication {
       .retrieve()
       .body(String.class);
 
-    Retry retry = Retry.ofDefaults("greeting-service-retryer");
+    log.info("circuit breaker is {}", circuitBreaker.getState());
 
-    return retry.executeSupplier(greetingSupplier);
+    return circuitBreaker.executeSupplier(greetingSupplier);
+
+    //    Retry retry = Retry.ofDefaults("greeting-service-retryer");
+    //
+    //    return retry.executeSupplier(greetingSupplier);
 
   }
 
